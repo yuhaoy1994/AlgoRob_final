@@ -22,9 +22,14 @@ def collect_neighbors(points, r_neigh, n=6):
 			r *= 2
 			idx = np.argwhere(D[i,:] < r)[:,0]
 
-		p_n = [points[:,i] for i in idx]
-		p_ns = get_normal(p_n)
+		p_n = list()
+		for j in idx:
+			if j == i:
+				continue
+			p_n.append(points[:,j])
+		p_n.append(points[:,i]) # append query point to the end
 
+		p_ns = get_normal(p_n)
 		neighbors.append(p_n)
 		normals.append(p_ns)
 
@@ -57,8 +62,9 @@ def get_p2feature(pn, ns):
 	features = list()
 
 	n = len(pn)
-	for i in range(n):
-		for j in range(i+1, n):
+	# when compute feature, only uses points in neighbor(exclude the query point)
+	for i in range(n-1):
+		for j in range(i+1, n-1):
 			p1 = pn[i]
 			p2 = pn[j]
 			ns1 = ns[i]
@@ -124,13 +130,15 @@ def get_histogram(features, bmin, bmax, nbins):
 	nbins: number of bins per dimension
 	'''
 
-	h = np.zeros((1, nbins**4))
-	binsteps = [(bmax[i]-bmin[i])/(nbins-1) for i in range(4)]
+	nf = 3;
+
+	h = np.zeros((1, nbins**nf))
+	binsteps = [(bmax[i]-bmin[i])/(nbins-1) for i in range(nf)]
 	
 	# rounding 
 	for f in features:
 		bins = list()
-		for i in range(4):
+		for i in range(nf):
 			# rounding
 			if f[i] < bmin[i]:
 				b = 0
@@ -140,7 +148,8 @@ def get_histogram(features, bmin, bmax, nbins):
 				b = int((f[i] - bmin[i]) / binsteps[i])
 			bins.append(b)
 
-		binidx = nbins*(nbins*(nbins*bins[0]+bins[1])+bins[2]) + bins[3]
+		# binidx = nbins*(nbins*(nbins*bins[0]+bins[1])+bins[2]) + bins[3]
+		binidx = nbins*(nbins*bins[0]+bins[1])+bins[2]
 		h[0, binidx] += 1
 
 	# # bilinear interpolation
@@ -177,6 +186,7 @@ def get_histogram(features, bmin, bmax, nbins):
 
 	# 	for binidx in binidices:
 	# 		h[binidx[0]] += binidx[1]
+	h = h * 1.0 / np.sum(h)
 	return h 
 
 
